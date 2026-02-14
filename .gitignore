@@ -40,3 +40,9 @@ next-env.d.ts
 
 # temp files
 /tmp/
+
+# local ghostscript binary
+/bin/
+
+# debug script
+debug-pdf.mjs

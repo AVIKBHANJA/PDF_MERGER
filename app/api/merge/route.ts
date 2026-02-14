@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     if (!pdfFile || !zip1File || !zip2File) {
       return NextResponse.json(
         { error: "All three files are required: 1 PDF and 2 ZIP files" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     if (!pdfFile.name.toLowerCase().endsWith(".pdf")) {
       return NextResponse.json(
         { error: "First file must be a PDF" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     ) {
       return NextResponse.json(
         { error: "Second and third files must be ZIP files" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     if (zip1Pdfs.length === 0 && zip2Pdfs.length === 0) {
       return NextResponse.json(
         { error: "No PDF files found in the ZIP archives" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -64,17 +64,21 @@ export async function POST(request: Request) {
 
     // Merge all PDFs
     const mergedBuffer = await mergePdfs(allPdfBuffers);
+    const originalSize = mergedBuffer.length;
 
     // Compress the merged PDF
     const compressedBuffer = await compressPdf(mergedBuffer);
+    const finalSize = compressedBuffer.length;
 
-    // Return the compressed PDF as a download
+    // Return the compressed PDF as a download with size info
     return new NextResponse(new Uint8Array(compressedBuffer), {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": 'attachment; filename="merged-compressed.pdf"',
         "Content-Length": compressedBuffer.length.toString(),
+        "X-Original-Size": originalSize.toString(),
+        "X-Final-Size": finalSize.toString(),
       },
     });
   } catch (err) {

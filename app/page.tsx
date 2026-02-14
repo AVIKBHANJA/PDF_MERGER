@@ -16,6 +16,8 @@ export default function Home() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [downloadUrl, setDownloadUrl] = useState("");
+  const [originalSize, setOriginalSize] = useState<number>(0);
+  const [finalSize, setFinalSize] = useState<number>(0);
   const xhrRef = useRef<XMLHttpRequest | null>(null);
 
   const allFilesSelected = pdfFile && zip1File && zip2File;
@@ -58,6 +60,13 @@ export default function Home() {
         const blob = xhr.response as Blob;
         const url = URL.createObjectURL(blob);
         setDownloadUrl(url);
+
+        // Extract size information from headers
+        const origSize = xhr.getResponseHeader("X-Original-Size");
+        const finSize = xhr.getResponseHeader("X-Final-Size");
+        if (origSize) setOriginalSize(parseInt(origSize, 10));
+        if (finSize) setFinalSize(parseInt(finSize, 10));
+
         setStatus("done");
       } else {
         // Try to parse error from JSON response
@@ -108,6 +117,8 @@ export default function Home() {
     setUploadProgress(0);
     setErrorMessage("");
     setDownloadUrl("");
+    setOriginalSize(0);
+    setFinalSize(0);
   }, [downloadUrl]);
 
   return (
@@ -178,7 +189,10 @@ export default function Home() {
         {/* Upload progress */}
         {status === "uploading" && (
           <div className="w-full">
-            <ProgressIndicator progress={uploadProgress} label="Uploading files..." />
+            <ProgressIndicator
+              progress={uploadProgress}
+              label="Uploading files..."
+            />
           </div>
         )}
 
@@ -201,7 +215,40 @@ export default function Home() {
 
         {/* Download button */}
         {status === "done" && downloadUrl && (
-          <DownloadButton url={downloadUrl} filename={`${outputName || "merged-compressed"}.pdf`} />
+          <div className="flex w-full flex-col items-center gap-3">
+            <DownloadButton
+              url={downloadUrl}
+              filename={`${outputName || "merged-compressed"}.pdf`}
+            />
+
+            {/* Size information */}
+            {originalSize > 0 && finalSize > 0 && (
+              <div className="w-full rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm">
+                <div className="flex items-center justify-between text-gray-300">
+                  <span>Original size:</span>
+                  <span className="font-medium">
+                    {(originalSize / 1024 / 1024).toFixed(1)} MB
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-gray-300">
+                  <span>Compressed size:</span>
+                  <span className="font-medium">
+                    {(finalSize / 1024 / 1024).toFixed(1)} MB
+                  </span>
+                </div>
+                <div className="mt-2 flex items-center justify-between border-t border-green-500/20 pt-2 text-green-400">
+                  <span className="font-medium">Space saved:</span>
+                  <span className="font-bold">
+                    {((1 - finalSize / originalSize) * 100).toFixed(0)}%
+                    <span className="text-xs font-normal">
+                      ({((originalSize - finalSize) / 1024 / 1024).toFixed(1)}{" "}
+                      MB)
+                    </span>
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Reset button */}

@@ -22,20 +22,19 @@ interface GsPass {
 }
 
 const GS_PASSES: GsPass[] = [
-  { resolution: "ebook", imageQuality: 90 },
-  { resolution: "ebook", imageQuality: 50 },
-  { resolution: "screen", imageQuality: 50 },
+  { resolution: "ebook", imageQuality: 80 }, // Start with 80% quality
+  { resolution: "ebook", imageQuality: 60 },
+  { resolution: "ebook", imageQuality: 40 },
+  { resolution: "screen", imageQuality: 40 },
   { resolution: "screen", imageQuality: 20 },
 ];
 
 export async function compressPdf(inputBuffer: Buffer): Promise<Buffer> {
-  if (inputBuffer.length <= MAX_OUTPUT_SIZE) {
-    return inputBuffer;
-  }
-
   const sizeMB = (b: Buffer) => (b.length / 1024 / 1024).toFixed(1);
+
+  // Always compress at least once to 80% quality to reduce size
   console.log(
-    `Merged PDF is ${sizeMB(inputBuffer)} MB, target < ${(MAX_OUTPUT_SIZE / 1024 / 1024).toFixed(0)} MB`,
+    `Processing PDF (${sizeMB(inputBuffer)} MB), target < ${(MAX_OUTPUT_SIZE / 1024 / 1024).toFixed(0)} MB`,
   );
 
   for (const pass of GS_PASSES) {
@@ -48,7 +47,17 @@ export async function compressPdf(inputBuffer: Buffer): Promise<Buffer> {
       console.log(
         `  GS pass (${pass.resolution}/q${pass.imageQuality}): ${sizeMB(inputBuffer)} MB -> ${sizeMB(result)} MB`,
       );
-      if (result.length <= MAX_OUTPUT_SIZE) return result;
+
+      // If under 20MB, we're done - return this result
+      if (result.length <= MAX_OUTPUT_SIZE) {
+        console.log(
+          `  ✓ Target size achieved with quality ${pass.imageQuality}`,
+        );
+        return result;
+      }
+
+      // Update input for next pass
+      inputBuffer = result;
     } catch (err) {
       console.error(
         `  GS pass (${pass.resolution}/q${pass.imageQuality}) failed:`,
@@ -58,16 +67,8 @@ export async function compressPdf(inputBuffer: Buffer): Promise<Buffer> {
   }
 
   // Return the most aggressively compressed version even if over limit
-  try {
-    const last = GS_PASSES[GS_PASSES.length - 1];
-    return await ghostscriptCompress(
-      inputBuffer,
-      last.resolution,
-      last.imageQuality,
-    );
-  } catch {
-    return inputBuffer;
-  }
+  console.log(`  ⚠ Could not reach target size, returning best compression`);
+  return inputBuffer;
 }
 
 async function ghostscriptCompress(

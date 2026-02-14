@@ -11,6 +11,7 @@ export default function Home() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [zip1File, setZip1File] = useState<File | null>(null);
   const [zip2File, setZip2File] = useState<File | null>(null);
+  const [outputName, setOutputName] = useState("merged-compressed");
   const [status, setStatus] = useState<Status>("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
@@ -102,6 +103,7 @@ export default function Home() {
     setPdfFile(null);
     setZip1File(null);
     setZip2File(null);
+    setOutputName("merged-compressed");
     setStatus("idle");
     setUploadProgress(0);
     setErrorMessage("");
@@ -144,6 +146,23 @@ export default function Home() {
         />
       </div>
 
+      {/* Output filename */}
+      <div className="mt-4">
+        <label className="text-sm font-medium text-gray-300">
+          Output filename
+        </label>
+        <div className="mt-1 flex items-center gap-2">
+          <input
+            type="text"
+            value={outputName}
+            onChange={(e) => setOutputName(e.target.value)}
+            placeholder="merged-compressed"
+            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+          <span className="shrink-0 text-sm text-gray-500">.pdf</span>
+        </div>
+      </div>
+
       {/* Action buttons */}
       <div className="mt-6 flex flex-col items-center gap-4">
         {status === "idle" || status === "error" ? (
@@ -182,7 +201,7 @@ export default function Home() {
 
         {/* Download button */}
         {status === "done" && downloadUrl && (
-          <DownloadButton url={downloadUrl} filename="merged-compressed.pdf" />
+          <DownloadButton url={downloadUrl} filename={`${outputName || "merged-compressed"}.pdf`} />
         )}
 
         {/* Reset button */}

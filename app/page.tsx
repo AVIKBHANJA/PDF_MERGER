@@ -4,6 +4,7 @@ import { useState, useCallback, useRef } from "react";
 import FileUploadZone from "@/components/FileUploadZone";
 import ProgressIndicator from "@/components/ProgressIndicator";
 import DownloadButton from "@/components/DownloadButton";
+import PDFFileList from "@/components/PDFFileList";
 
 type Status = "idle" | "uploading" | "processing" | "done" | "error";
 
@@ -156,6 +157,9 @@ export default function Home() {
           onFileSelect={setZip2File}
         />
       </div>
+
+      {/* PDF File List */}
+      <PDFFileList pdfFile={pdfFile} zip1File={zip1File} zip2File={zip2File} />
 
       {/* Output filename */}
       <div className="mt-4">

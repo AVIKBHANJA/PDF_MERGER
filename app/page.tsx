@@ -9,9 +9,7 @@ import PDFFileList from "@/components/PDFFileList";
 type Status = "idle" | "uploading" | "processing" | "done" | "error";
 
 export default function Home() {
-  const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [zip1File, setZip1File] = useState<File | null>(null);
-  const [zip2File, setZip2File] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [outputName, setOutputName] = useState("merged-compressed");
   const [status, setStatus] = useState<Status>("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -21,11 +19,19 @@ export default function Home() {
   const [finalSize, setFinalSize] = useState<number>(0);
   const xhrRef = useRef<XMLHttpRequest | null>(null);
 
-  const allFilesSelected = pdfFile && zip1File && zip2File;
+  const hasFiles = files.length > 0;
   const isWorking = status === "uploading" || status === "processing";
 
+  const handleFilesSelect = useCallback((newFiles: File[]) => {
+    setFiles((prev) => [...prev, ...newFiles]);
+  }, []);
+
+  const handleRemoveFile = useCallback((index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
   const handleMerge = useCallback(() => {
-    if (!pdfFile || !zip1File || !zip2File) return;
+    if (files.length === 0) return;
 
     // Clean up previous download URL
     if (downloadUrl) {
@@ -38,9 +44,9 @@ export default function Home() {
     setErrorMessage("");
 
     const formData = new FormData();
-    formData.append("pdf", pdfFile);
-    formData.append("zip1", zip1File);
-    formData.append("zip2", zip2File);
+    files.forEach((file) => {
+      formData.append("files", file);
+    });
 
     const xhr = new XMLHttpRequest();
     xhrRef.current = xhr;
@@ -100,7 +106,7 @@ export default function Home() {
 
     xhr.open("POST", "/api/merge");
     xhr.send(formData);
-  }, [pdfFile, zip1File, zip2File, downloadUrl]);
+  }, [files, downloadUrl]);
 
   const handleReset = useCallback(() => {
     if (xhrRef.current) {
@@ -110,9 +116,7 @@ export default function Home() {
     if (downloadUrl) {
       URL.revokeObjectURL(downloadUrl);
     }
-    setPdfFile(null);
-    setZip1File(null);
-    setZip2File(null);
+    setFiles([]);
     setOutputName("merged-compressed");
     setStatus("idle");
     setUploadProgress(0);
@@ -129,37 +133,24 @@ export default function Home() {
           PDF Merger & Compressor
         </h1>
         <p className="mt-2 text-gray-400">
-          Upload 1 PDF and 2 ZIP files. The app merges everything in order and
-          compresses the result to under 20 MB.
+          Upload any combination of PDF and ZIP files. The app merges everything
+          in order and compresses the result to under 20 MB.
         </p>
       </div>
 
       <div className="space-y-4">
         <FileUploadZone
-          label="1. Single PDF"
-          accept=".pdf"
-          description="Select a .pdf file"
-          file={pdfFile}
-          onFileSelect={setPdfFile}
-        />
-        <FileUploadZone
-          label="2. ZIP File #1"
-          accept=".zip"
-          description="Select a .zip containing PDFs"
-          file={zip1File}
-          onFileSelect={setZip1File}
-        />
-        <FileUploadZone
-          label="3. ZIP File #2"
-          accept=".zip"
-          description="Select a .zip containing PDFs"
-          file={zip2File}
-          onFileSelect={setZip2File}
+          label="Upload Files"
+          accept=".pdf,.zip"
+          description="Select PDF or ZIP files (any combination)"
+          files={files}
+          onFilesSelect={handleFilesSelect}
+          onRemoveFile={handleRemoveFile}
         />
       </div>
 
       {/* PDF File List */}
-      <PDFFileList pdfFile={pdfFile} zip1File={zip1File} zip2File={zip2File} />
+      <PDFFileList files={files} />
 
       {/* Output filename */}
       <div className="mt-4">
@@ -183,7 +174,7 @@ export default function Home() {
         {status === "idle" || status === "error" ? (
           <button
             onClick={handleMerge}
-            disabled={!allFilesSelected}
+            disabled={!hasFiles}
             className="w-full rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-500"
           >
             Merge & Compress
@@ -270,9 +261,8 @@ export default function Home() {
       <div className="mt-10 rounded-lg border border-gray-800 bg-gray-900/50 p-4 text-xs text-gray-500">
         <p className="font-medium text-gray-400">Merge order:</p>
         <ol className="mt-1 list-inside list-decimal space-y-0.5">
-          <li>The single PDF file</li>
-          <li>PDFs from ZIP #1 (sorted alphabetically)</li>
-          <li>PDFs from ZIP #2 (sorted alphabetically)</li>
+          <li>Files are merged in the order they are added</li>
+          <li>PDFs from ZIP files are sorted alphabetically</li>
         </ol>
       </div>
     </main>

@@ -7,14 +7,11 @@ import { MAX_OUTPUT_SIZE } from "./constants";
 
 const execFileAsync = promisify(execFile);
 
-// Portable Ghostscript binary bundled with the project
-const GS_BIN = path.join(
-  process.cwd(),
-  "bin",
-  "gs-nsis",
-  "bin",
-  "gswin64c.exe",
-);
+// Use system Ghostscript on Linux, bundled binary on Windows
+const GS_BIN =
+  process.platform === "win32"
+    ? path.join(process.cwd(), "bin", "gs-nsis", "bin", "gswin64c.exe")
+    : "gs";
 
 interface GsPass {
   resolution: string;

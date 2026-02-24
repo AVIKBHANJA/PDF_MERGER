@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git revert:*)"
+      "Bash(git revert:*)",
+      "Bash(cd \"c:\\\\Users\\\\avikb\\\\OneDrive\\\\Documents\\\\personal projects\\\\pdf-merger\" && npm run build 2>&1)"
     ]
   }
 }

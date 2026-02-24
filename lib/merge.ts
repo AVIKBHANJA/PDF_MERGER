@@ -7,13 +7,10 @@ import os from "os";
 
 const execFileAsync = promisify(execFile);
 
-const GS_BIN = path.join(
-  process.cwd(),
-  "bin",
-  "gs-nsis",
-  "bin",
-  "gswin64c.exe",
-);
+const GS_BIN =
+  process.platform === "win32"
+    ? path.join(process.cwd(), "bin", "gs-nsis", "bin", "gswin64c.exe")
+    : "gs";
 
 /** Run a malformed PDF through Ghostscript to repair it */
 async function repairPdf(pdfBuffer: Buffer): Promise<Buffer> {

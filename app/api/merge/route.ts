@@ -49,12 +49,16 @@ export async function POST(request: Request) {
     }
 
     // Merge all PDFs
+    console.log(`Merging ${allPdfBuffers.length} PDFs...`);
     const mergedBuffer = await mergePdfs(allPdfBuffers);
     const originalSize = mergedBuffer.length;
+    console.log(`Merged PDF: ${(originalSize / 1024 / 1024).toFixed(1)} MB`);
 
     // Compress the merged PDF
+    console.log("Starting compression...");
     const compressedBuffer = await compressPdf(mergedBuffer);
     const finalSize = compressedBuffer.length;
+    console.log(`Compression done: ${(finalSize / 1024 / 1024).toFixed(1)} MB`);
 
     // Return the compressed PDF as a download with size info
     return new NextResponse(new Uint8Array(compressedBuffer), {

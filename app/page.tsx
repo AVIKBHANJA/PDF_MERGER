@@ -104,7 +104,15 @@ export default function Home() {
       setStatus("idle");
     });
 
+    xhr.addEventListener("timeout", () => {
+      setErrorMessage(
+        "Request timed out. The files may be too large for the server to process.",
+      );
+      setStatus("error");
+    });
+
     xhr.open("POST", "/api/merge");
+    xhr.timeout = 5 * 60 * 1000; // 5 minute timeout
     xhr.send(formData);
   }, [files, downloadUrl]);
 

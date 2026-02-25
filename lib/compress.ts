@@ -13,15 +13,17 @@ const GS_BIN =
     ? path.join(process.cwd(), "bin", "gs-nsis", "bin", "gswin64c.exe")
     : "gs";
 
+// Per-pass timeout: 5 minutes (Render free tier has 0.1 CPU)
+const GS_TIMEOUT = 5 * 60 * 1000;
+
 interface GsPass {
   resolution: string;
   imageQuality: number;
 }
 
+// Ordered from aggressive to most aggressive — skip gentle passes to save time
 const GS_PASSES: GsPass[] = [
-  { resolution: "ebook", imageQuality: 80 }, // Start with 80% quality
   { resolution: "ebook", imageQuality: 60 },
-  { resolution: "ebook", imageQuality: 40 },
   { resolution: "screen", imageQuality: 40 },
   { resolution: "screen", imageQuality: 20 },
 ];
@@ -29,13 +31,23 @@ const GS_PASSES: GsPass[] = [
 export async function compressPdf(inputBuffer: Buffer): Promise<Buffer> {
   const sizeMB = (b: Buffer) => (b.length / 1024 / 1024).toFixed(1);
 
-  // Always compress at least once to 80% quality to reduce size
+  // If already under limit, skip compression entirely
+  if (inputBuffer.length <= MAX_OUTPUT_SIZE) {
+    console.log(
+      `PDF is ${sizeMB(inputBuffer)} MB, already under ${(MAX_OUTPUT_SIZE / 1024 / 1024).toFixed(0)} MB — skipping compression`,
+    );
+    return inputBuffer;
+  }
+
   console.log(
     `Processing PDF (${sizeMB(inputBuffer)} MB), target < ${(MAX_OUTPUT_SIZE / 1024 / 1024).toFixed(0)} MB`,
   );
 
   for (const pass of GS_PASSES) {
     try {
+      console.log(
+        `  Starting GS pass (${pass.resolution}/q${pass.imageQuality})...`,
+      );
       const result = await ghostscriptCompress(
         inputBuffer,
         pass.resolution,
@@ -45,26 +57,26 @@ export async function compressPdf(inputBuffer: Buffer): Promise<Buffer> {
         `  GS pass (${pass.resolution}/q${pass.imageQuality}): ${sizeMB(inputBuffer)} MB -> ${sizeMB(result)} MB`,
       );
 
-      // If under 20MB, we're done - return this result
       if (result.length <= MAX_OUTPUT_SIZE) {
         console.log(
-          `  ✓ Target size achieved with quality ${pass.imageQuality}`,
+          `  Target size achieved with quality ${pass.imageQuality}`,
         );
         return result;
       }
 
-      // Update input for next pass
+      // Use compressed output as input for next pass
       inputBuffer = result;
     } catch (err) {
       console.error(
         `  GS pass (${pass.resolution}/q${pass.imageQuality}) failed:`,
-        err,
+        err instanceof Error ? err.message : err,
       );
+      // Continue to next pass instead of getting stuck
     }
   }
 
-  // Return the most aggressively compressed version even if over limit
-  console.log(`  ⚠ Could not reach target size, returning best compression`);
+  // Return whatever we have — even uncompressed is better than hanging
+  console.log(`  Returning best result: ${sizeMB(inputBuffer)} MB`);
   return inputBuffer;
 }
 
@@ -101,7 +113,7 @@ async function ghostscriptCompress(
       inputPath,
     ];
 
-    await execFileAsync(GS_BIN, args, { timeout: 120_000 });
+    await execFileAsync(GS_BIN, args, { timeout: GS_TIMEOUT });
 
     return await fs.readFile(outputPath);
   } finally {

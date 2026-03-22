@@ -4,29 +4,12 @@ import fs from "fs/promises";
 import path from "path";
 import os from "os";
 import { MAX_OUTPUT_SIZE } from "./constants";
+import { GS_BIN } from "./gs";
 
 const execFileAsync = promisify(execFile);
 
-// Use system Ghostscript on Linux, bundled binary on Windows
-const GS_BIN =
-  process.platform === "win32"
-    ? path.join(process.cwd(), "bin", "gs-nsis", "bin", "gswin64c.exe")
-    : "gs";
-
-// Per-pass timeout: 5 minutes (Render free tier has 0.1 CPU)
-const GS_TIMEOUT = 5 * 60 * 1000;
-
-interface GsPass {
-  resolution: string;
-  imageQuality: number;
-}
-
-// Ordered from aggressive to most aggressive — skip gentle passes to save time
-const GS_PASSES: GsPass[] = [
-  { resolution: "ebook", imageQuality: 60 },
-  { resolution: "screen", imageQuality: 40 },
-  { resolution: "screen", imageQuality: 20 },
-];
+// 10 minute timeout — Render free tier has 0.1 CPU so compression is very slow
+const GS_TIMEOUT = 10 * 60 * 1000;
 
 export async function compressPdf(inputBuffer: Buffer): Promise<Buffer> {
   const sizeMB = (b: Buffer) => (b.length / 1024 / 1024).toFixed(1);
@@ -40,43 +23,26 @@ export async function compressPdf(inputBuffer: Buffer): Promise<Buffer> {
   }
 
   console.log(
-    `Processing PDF (${sizeMB(inputBuffer)} MB), target < ${(MAX_OUTPUT_SIZE / 1024 / 1024).toFixed(0)} MB`,
+    `Compressing PDF (${sizeMB(inputBuffer)} MB), target < ${(MAX_OUTPUT_SIZE / 1024 / 1024).toFixed(0)} MB`,
   );
 
-  for (const pass of GS_PASSES) {
-    try {
-      console.log(
-        `  Starting GS pass (${pass.resolution}/q${pass.imageQuality})...`,
-      );
-      const result = await ghostscriptCompress(
-        inputBuffer,
-        pass.resolution,
-        pass.imageQuality,
-      );
-      console.log(
-        `  GS pass (${pass.resolution}/q${pass.imageQuality}): ${sizeMB(inputBuffer)} MB -> ${sizeMB(result)} MB`,
-      );
-
-      if (result.length <= MAX_OUTPUT_SIZE) {
-        console.log(
-          `  Target size achieved with quality ${pass.imageQuality}`,
-        );
-        return result;
-      }
-
-      // Use compressed output as input for next pass
-      inputBuffer = result;
-    } catch (err) {
-      console.error(
-        `  GS pass (${pass.resolution}/q${pass.imageQuality}) failed:`,
-        err instanceof Error ? err.message : err,
-      );
-      // Continue to next pass instead of getting stuck
-    }
+  // Single aggressive pass — fastest route to <20MB on slow hardware
+  try {
+    console.log(`  Starting GS compression (screen/q40)...`);
+    const result = await ghostscriptCompress(inputBuffer, "screen", 40);
+    console.log(
+      `  Compressed: ${sizeMB(inputBuffer)} MB -> ${sizeMB(result)} MB`,
+    );
+    return result;
+  } catch (err) {
+    console.error(
+      `  GS compression failed:`,
+      err instanceof Error ? err.message : err,
+    );
   }
 
-  // Return whatever we have — even uncompressed is better than hanging
-  console.log(`  Returning best result: ${sizeMB(inputBuffer)} MB`);
+  // Return uncompressed if GS fails
+  console.log(`  Returning uncompressed: ${sizeMB(inputBuffer)} MB`);
   return inputBuffer;
 }
 
@@ -98,16 +64,12 @@ async function ghostscriptCompress(
       "-dBATCH",
       "-dSAFER",
       "-sDEVICE=pdfwrite",
-      `-dCompatibilityLevel=1.4`,
+      "-dCompatibilityLevel=1.4",
       `-dPDFSETTINGS=/${resolution}`,
-      "-dEmbedAllFonts=true",
       "-dSubsetFonts=true",
       "-dAutoRotatePages=/None",
-      "-dColorImageDownsampleType=/Bicubic",
       `-dColorImageResolution=${imageQuality}`,
-      "-dGrayImageDownsampleType=/Bicubic",
       `-dGrayImageResolution=${imageQuality}`,
-      "-dMonoImageDownsampleType=/Bicubic",
       `-dMonoImageResolution=${imageQuality}`,
       `-sOutputFile=${outputPath}`,
       inputPath,

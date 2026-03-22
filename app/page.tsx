@@ -112,7 +112,7 @@ export default function Home() {
     });
 
     xhr.open("POST", "/api/merge");
-    xhr.timeout = 5 * 60 * 1000; // 5 minute timeout
+    xhr.timeout = 12 * 60 * 1000; // 12 minute timeout (Render free tier is slow)
     xhr.send(formData);
   }, [files, downloadUrl]);
 

@@ -2,7 +2,22 @@
   "permissions": {
     "allow": [
       "Bash(git revert:*)",
-      "Bash(cd \"c:\\\\Users\\\\avikb\\\\OneDrive\\\\Documents\\\\personal projects\\\\pdf-merger\" && npm run build 2>&1)"
+      "Bash(cd \"c:\\\\Users\\\\avikb\\\\OneDrive\\\\Documents\\\\personal projects\\\\pdf-merger\" && npm run build 2>&1)",
+      "Bash(npm run:*)",
+      "Bash(ls:*)",
+      "Bash(where gswin64c:*)",
+      "Bash(where gs:*)",
+      "Read(//c/Program Files/**)",
+      "Read(//c/Program Files \\(x86\\)/**)",
+      "Bash(winget install:*)",
+      "Bash(winget search:*)",
+      "Bash(curl:*)",
+      "Bash(node -e \"const { GS_BIN } = require\\(''./lib/gs''\\); console.log\\(''GS binary:'', GS_BIN\\);\")",
+      "Bash(node -e \":*)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "stitch",
+    "supabase"
+  ]
 }
